@@ -31,9 +31,7 @@ import java.util.*;
 @PluginDescriptor(
         name = "Party Ready Check",
         description = "Display an alert to check ready status of your party",
-        tags = {"menu"},
-        loadWhenOutdated = true,
-        enabledByDefault = true
+        tags = {"menu"}
 )
 
 @Slf4j
