@@ -1,2 +1,9 @@
-build/
-partyreadycheck.gradle.kts
+.gradle
+build
+.idea/
+.project
+.settings/
+.classpath
+nbactions.xml
+nb-configuration.xml
+nbproject/
