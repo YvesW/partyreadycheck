@@ -30,7 +30,7 @@ import java.util.Locale;
 @PluginDescriptor(
 		name = "Party Ready Check",
 		description = "Display an alert to check ready status of your party",
-		tags = {"tob","party","ready","check"}
+		tags = {"tob","theater", "blood", "party","ready","check"}
 )
 
 @Slf4j
@@ -139,16 +139,6 @@ public class PartyReadyCheckPlugin extends Plugin {
 	public void onChatMessage(ChatMessage chatMessage)
 	{
 		raidingPartyWidget = client.getWidget(1835020);
-		raidingPartyWidget.setText("Hello world");
-
-		log.info("Hello?");
-		log.info("Is it null? " + raidingPartyWidget);
-		log.info("WIDGET: " + raidingPartyWidget.toString());
-		log.info("TEXT: " + raidingPartyWidget.getText());
-
-		raidingPartyWidget.setText("Hello world");
-
-		if (true) return;
 
 		if (
 				client.getWidget(PARTY_LIST_ID_TOB_HEADER) == null ||
@@ -161,7 +151,6 @@ public class PartyReadyCheckPlugin extends Plugin {
 		String msg = chatMessage.getMessage().toUpperCase(Locale.ROOT).trim();
 		if (msg.equals("R") || msg.equals("UN R"))
 		{
-			//raidingPartyWidget = client.getWidget(PARTY_LIST_ID_TOB);// Player list sub-widget on TOB party frame
 			if (raidingPartyWidget == null || raidingPartyWidget.isHidden())
 				return;
 
@@ -197,7 +186,7 @@ public class PartyReadyCheckPlugin extends Plugin {
 			}
 
 			log.info("Tried to set text to " + outputText);
-			raidingPartyWidget.setText("Hello world");
+			raidingPartyWidget.setText(outputText);
 			//.setText(outputText);// Old error line
 
 			//
