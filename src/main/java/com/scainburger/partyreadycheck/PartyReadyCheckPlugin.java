@@ -30,7 +30,7 @@ import java.util.Locale;
 @PluginDescriptor(
 		name = "Party Ready Check",
 		description = "Display an alert to check ready status of your party",
-		tags = {"tob","theater", "blood", "party","ready","check"}
+		tags = {"tob","theatre","blood","party","ready","check"}
 )
 
 @Slf4j
