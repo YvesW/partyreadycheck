@@ -29,14 +29,20 @@ import java.util.Locale;
 
 @PluginDescriptor(
 		name = "Party Ready Check",
-		description = "Display an alert to check ready status of your party",
-		tags = {"tob","theatre","blood","party","ready","check"}
+		description = "Display an alert to check ready status of your party in ToB or ToA",
+		tags = {"tob","theatre","theater","blood","toa","tombs","amascut","party","ready","check"}
 )
 
 @Slf4j
 public class PartyReadyCheckPlugin extends Plugin {
 
-	Widget raidingPartyWidget;
+	final int TOB_HEADER_WIDGET_ID = 1835019;
+	final int TOA_HEADER_WIDGET_ID = 50659332;
+	final int TOB_PARTY_WIDGET_ID = 1835020;
+	final int TOA_PARTY_WIDGET_ID = 50659333;
+	Widget tobRaidingPartyHeader;
+	Widget toaRaidingPartyHeader;
+	Widget raidingPartyWidget = null;
 
 	@Getter
 	@Inject
@@ -44,9 +50,6 @@ public class PartyReadyCheckPlugin extends Plugin {
 
 	@Inject
 	private PartyReadyCheckConfig config;
-
-	private static final int PARTY_LIST_ID_TOB_HEADER = 1835019;
-	private static final int PARTY_LIST_ID_TOB = 1835020;
 
 	private int rcTicksRemaining = -1;
 
@@ -84,13 +87,6 @@ public class PartyReadyCheckPlugin extends Plugin {
 	// End stolen code :)
 	//
 
-	private AudioFormat getOutFormat(AudioFormat inFormat)
-	{
-		int ch = inFormat.getChannels();
-		float rate = inFormat.getSampleRate();
-		return new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, rate, 16, ch, ch * 2, rate, false);
-	}
-
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) throws IOException {
 		if (config.useAlternateSounds() && !Files.isDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"))) {
@@ -101,36 +97,36 @@ public class PartyReadyCheckPlugin extends Plugin {
 	public void playSound(String customSound, int fallbackSound)
 	{
 		File soundDir = new File(RuneLite.RUNELITE_DIR,"partyreadycheck/" + customSound);
-		if (config.useAlternateSounds() && Files.exists(soundDir.toPath())) {
-			try {
-				Clip clip = AudioSystem.getClip();
-				InputStream fileStream = new BufferedInputStream(
-						new FileInputStream(soundDir)
-				);
-				AudioInputStream inputStream = AudioSystem.getAudioInputStream(fileStream);
-				clip.open(inputStream);
-				if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-					BooleanControl muteControl = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
-					muteControl.setValue(false);
-					FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-					int soundVol = (int) Math.round( client.getPreferences().getSoundEffectVolume() / 1.27);
-					float newVol = (float) (Math.log((double) soundVol/100) / Math.log(10.0) * 20.0);
-					gainControl.setValue(newVol);
-				}
-				clip.addLineListener(new LineListener() {
-					public void update(LineEvent myLineEvent) {
+		if (config.useAlternateSounds()) {
+			if (Files.exists(soundDir.toPath())) {
+				try {
+					Clip clip = AudioSystem.getClip();
+					InputStream fileStream = new BufferedInputStream(
+							new FileInputStream(soundDir)
+					);
+					AudioInputStream inputStream = AudioSystem.getAudioInputStream(fileStream);
+					clip.open(inputStream);
+					if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+						BooleanControl muteControl = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
+						muteControl.setValue(false);
+						FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+						int soundVol = (int) Math.round( client.getPreferences().getSoundEffectVolume() / 1.27);
+						float newVol = (float) (Math.log((double) soundVol/100) / Math.log(10.0) * 20.0);
+						gainControl.setValue(newVol);
+					}
+					clip.addLineListener(myLineEvent -> {
 						if (myLineEvent.getType() == LineEvent.Type.STOP)
 							clip.close();
-					}
-				});
-				clip.start();
-				return;
-			} catch (Exception e) {
-				log.warn("Could not play custom sound file: " + e.getMessage());
+					});
+					clip.start();
+					return;
+				} catch (Exception e) {
+					log.warn("Could not play custom sound file: " + e.getMessage());
+				}
 			}
-		}
-		else if (!Files.exists(soundDir.toPath())) {
-			log.info("Custom sound file missing: " + soundDir);
+			else {
+				log.info("\"Use alternate sounds\" is on, but a custom sound file is missing: " + soundDir);
+			}
 		}
 		client.playSoundEffect(fallbackSound);
 	}
@@ -138,15 +134,28 @@ public class PartyReadyCheckPlugin extends Plugin {
 	@Subscribe
 	public void onChatMessage(ChatMessage chatMessage)
 	{
-		raidingPartyWidget = client.getWidget(1835020);
+
+		tobRaidingPartyHeader = client.getWidget(TOB_HEADER_WIDGET_ID);
+		toaRaidingPartyHeader = client.getWidget(TOA_HEADER_WIDGET_ID);
+		raidingPartyWidget = null;
 
 		if (
-				client.getWidget(PARTY_LIST_ID_TOB_HEADER) == null ||
-						client.getWidget(PARTY_LIST_ID_TOB_HEADER).getText().equals("No party") ||
-						client.getWidget(PARTY_LIST_ID_TOB_HEADER).isHidden()
+			tobRaidingPartyHeader != null &&
+			!(tobRaidingPartyHeader.getText().toUpperCase(Locale.ROOT).equals("NO PARTY")) &&
+			!tobRaidingPartyHeader.isHidden()
 		) {
-			return;
+			raidingPartyWidget = client.getWidget(TOB_PARTY_WIDGET_ID);
 		}
+		if (
+			toaRaidingPartyHeader != null &&
+			!(toaRaidingPartyHeader.getText().toUpperCase(Locale.ROOT).equals("NO PARTY")) &&
+			!toaRaidingPartyHeader.isHidden()
+		) {
+			raidingPartyWidget = client.getWidget(TOA_PARTY_WIDGET_ID);
+		}
+
+		if (raidingPartyWidget == null)
+			return; // no party
 
 		String msg = chatMessage.getMessage().toUpperCase(Locale.ROOT).trim();
 		if (msg.equals("R") || msg.equals("UN R"))
@@ -155,17 +164,17 @@ public class PartyReadyCheckPlugin extends Plugin {
 				return;
 
 			String[] playerNames = raidingPartyWidget.getText().split("<br>");
-			String outputText = "";
+			StringBuilder outputText = new StringBuilder();
 
+			// Replace nbsp
 			String senderName = chatMessage.getName().replace("\u00A0", " ");
 
 			for (int i = 0; i < playerNames.length; i++)
 			{
 				String name = playerNames[i];
-				log.info("Processing " + name);
 				if (name.equals(senderName) && msg.equals("R"))
-				{ // Un-ready player is now ready
-					outputText = outputText + name + " (R)";
+				{ // Player is now ready
+					outputText.append(name).append(" (R)");
 
 					if (rcTicksRemaining == -1) {
 						rcTicksRemaining = 100;
@@ -175,23 +184,17 @@ public class PartyReadyCheckPlugin extends Plugin {
 
 				}
 				else if (name.equals(senderName + " (R)") && msg.equals("UN R"))
-				{ // Ready player is now un-ready
-					outputText = outputText + senderName; // restore to original
+				{ // Ready player is no longer ready
+					outputText.append(senderName); // restore to original
 				}
 				else
 				{ // No state change
-					outputText = outputText + name;
+					outputText.append(name);
 				}
-				if (i<4) outputText += "<br>";
+				if (i < playerNames.length - 1) outputText.append("<br>");
 			}
 
-			log.info("Tried to set text to " + outputText);
-			raidingPartyWidget.setText(outputText);
-			//.setText(outputText);// Old error line
-
-			//
-			// Now check if all players are ready
-			//
+			raidingPartyWidget.setText(outputText.toString());
 
 			playerNames = raidingPartyWidget.getText().split("<br>");
 			for (int i = 0; i < playerNames.length; i++)
@@ -221,7 +224,7 @@ public class PartyReadyCheckPlugin extends Plugin {
 				name = name.substring(0, name.length() - 4);
 			}
 			outputText = outputText + name;
-			if (i < 4) outputText += "<br>";
+			if (i < playerNames.length - 1) outputText += "<br>";
 		}
 		raidingPartyWidget.setText(outputText);
 	}
