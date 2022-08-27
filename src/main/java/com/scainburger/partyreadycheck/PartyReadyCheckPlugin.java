@@ -97,44 +97,49 @@ public class PartyReadyCheckPlugin extends Plugin {
 	public void playSound(String customSound, int fallbackSound)
 	{
 		File soundDir = new File(RuneLite.RUNELITE_DIR,"partyreadycheck/" + customSound);
-		if (config.useAlternateSounds()) {
-			if (Files.exists(soundDir.toPath())) {
-				try {
-					Clip clip = AudioSystem.getClip();
-					InputStream fileStream = new BufferedInputStream(
-							new FileInputStream(soundDir)
-					);
-					AudioInputStream inputStream = AudioSystem.getAudioInputStream(fileStream);
-					clip.open(inputStream);
-					if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-						BooleanControl muteControl = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
-						muteControl.setValue(false);
-						FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-						int soundVol = (int) Math.round( client.getPreferences().getSoundEffectVolume() / 1.27);
-						float newVol = (float) (Math.log((double) soundVol/100) / Math.log(10.0) * 20.0);
-						gainControl.setValue(newVol);
-					}
-					clip.addLineListener(myLineEvent -> {
-						if (myLineEvent.getType() == LineEvent.Type.STOP)
-							clip.close();
-					});
-					clip.start();
-					return;
-				} catch (Exception e) {
-					log.warn("Could not play custom sound file: " + e.getMessage());
-				}
-			}
-			else {
+
+		if (!config.useAlternateSounds() || !Files.exists(soundDir.toPath())) {
+			if (config.useAlternateSounds())
 				log.info("\"Use alternate sounds\" is on, but a custom sound file is missing: " + soundDir);
-			}
+			client.playSoundEffect(fallbackSound);
+			return;
 		}
-		client.playSoundEffect(fallbackSound);
+
+		Clip clip = null;
+		try {
+			clip = AudioSystem.getClip();
+			InputStream fileStream = new BufferedInputStream(
+					new FileInputStream(soundDir)
+			);
+			AudioInputStream inputStream = AudioSystem.getAudioInputStream(fileStream);
+			clip.open(inputStream);
+			if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+				BooleanControl muteControl = (BooleanControl) clip.getControl(BooleanControl.Type.MUTE);
+				muteControl.setValue(false);
+				FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+				int soundVol = (int) Math.round( client.getPreferences().getSoundEffectVolume() / 1.27);
+				float newVol = (float) (Math.log((double) soundVol/100) / Math.log(10.0) * 20.0);
+				gainControl.setValue(newVol);
+			}
+			clip.start();
+			Clip finalClip = clip;
+			clip.addLineListener(new LineListener() {
+				public void update(LineEvent myLineEvent) {
+					if (myLineEvent.getType() == LineEvent.Type.STOP)
+						finalClip.close();
+				}
+			});
+			return;
+		} catch (Exception e) {
+			log.warn("Could not play custom sound file: " + e.getMessage() + " (" + soundDir + ")");
+			clip.close();
+			client.playSoundEffect(fallbackSound);
+		}
 	}
 
 	@Subscribe
 	public void onChatMessage(ChatMessage chatMessage)
 	{
-
 		tobRaidingPartyHeader = client.getWidget(TOB_HEADER_WIDGET_ID);
 		toaRaidingPartyHeader = client.getWidget(TOA_HEADER_WIDGET_ID);
 		raidingPartyWidget = null;
