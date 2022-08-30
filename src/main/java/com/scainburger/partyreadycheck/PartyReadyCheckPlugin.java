@@ -40,6 +40,7 @@ public class PartyReadyCheckPlugin extends Plugin {
 	final int TOA_HEADER_WIDGET_ID = 50659332;
 	final int TOB_PARTY_WIDGET_ID = 1835020;
 	final int TOA_PARTY_WIDGET_ID = 50659333;
+
 	Widget tobRaidingPartyHeader;
 	Widget toaRaidingPartyHeader;
 	Widget raidingPartyWidget = null;
@@ -89,7 +90,10 @@ public class PartyReadyCheckPlugin extends Plugin {
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) throws IOException {
-		if (config.useAlternateSounds() && !Files.isDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"))) {
+		if (
+			config.useAlternateSounds()
+			&& !Files.isDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"))
+		) {
 			Files.createDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"));
 		}
 	}
@@ -140,6 +144,10 @@ public class PartyReadyCheckPlugin extends Plugin {
 	@Subscribe
 	public void onChatMessage(ChatMessage chatMessage)
 	{
+		// Don't process messages with no sender i.e. game/system messages
+		if (chatMessage.getName().equals(""))
+			return;
+
 		tobRaidingPartyHeader = client.getWidget(TOB_HEADER_WIDGET_ID);
 		toaRaidingPartyHeader = client.getWidget(TOA_HEADER_WIDGET_ID);
 		raidingPartyWidget = null;
@@ -173,10 +181,13 @@ public class PartyReadyCheckPlugin extends Plugin {
 
 			// Replace nbsp
 			String senderName = chatMessage.getName().replace("\u00A0", " ");
+			// Remove icons (ironman etc)
+			senderName = senderName.replaceAll("\\<img=[0-9]+\\>", "");
 
 			for (int i = 0; i < playerNames.length; i++)
 			{
 				String name = playerNames[i];
+
 				if (name.equals(senderName) && msg.equals("R"))
 				{ // Player is now ready
 					outputText.append(name).append(" (R)");
