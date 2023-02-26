@@ -1,5 +1,12 @@
 # Party Ready Check
 
+## Custom sounds not working?
+
+Open the sound file in Audacity and export it. You don't need to change anything. For some reason that I can't see, this fixes the issue.
+
+See [here](https://github.com/scainburger/partyreadycheck/issues/4) for more info.
+
+## Plugin Usage
 
 When in a ToB or ToA party, type "R" in any chat visible to your party.
 
