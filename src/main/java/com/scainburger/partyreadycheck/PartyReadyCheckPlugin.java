@@ -19,13 +19,14 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.util.*;
 
 import javax.inject.Inject;
 import javax.sound.sampled.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Locale;
+import java.util.*;
 
 @PluginDescriptor(
 		name = "Party Ready Check",
@@ -44,6 +45,9 @@ public class PartyReadyCheckPlugin extends Plugin {
 	Widget tobRaidingPartyHeader;
 	Widget toaRaidingPartyHeader;
 	Widget raidingPartyWidget = null;
+
+	private List<String> readyMessages = new ArrayList<>();
+	private List<String> unreadyMessages = new ArrayList<>();
 
 	@Getter
 	@Inject
@@ -88,14 +92,30 @@ public class PartyReadyCheckPlugin extends Plugin {
 	// End stolen code :)
 	//
 
+	@Override
+	public void startUp() throws Exception {
+		convertCSVConfigStringToList(config.readyMessages(), readyMessages);
+		convertCSVConfigStringToList(config.unreadyMessages(), unreadyMessages);
+	}
+
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) throws IOException {
-		if (
-			config.useAlternateSounds()
-			&& !Files.isDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"))
-		) {
-			Files.createDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"));
+		if (event.getGroup().equals("partyreadycheck")) {
+			String key = event.getKey();
+			if (key.equals("useAlternateSounds") && config.useAlternateSounds()
+							&& !Files.isDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck")) ) {
+				Files.createDirectory(Paths.get(RuneLite.RUNELITE_DIR + "/partyreadycheck"));
+			}
+			if (key.equals("readyMessages") || key.equals("unreadyMessages")) {
+				convertCSVConfigStringToList(config.readyMessages(), readyMessages);
+				convertCSVConfigStringToList(config.unreadyMessages(), unreadyMessages);
+			}
 		}
+	}
+
+	private void convertCSVConfigStringToList(String configString, List<String> listToConvertTo) {
+		listToConvertTo.clear();
+		listToConvertTo.addAll(Text.fromCSV(Text.standardize(configString)));
 	}
 
 	public void playSound(String customSound, int fallbackSound)
@@ -167,14 +187,16 @@ public class PartyReadyCheckPlugin extends Plugin {
 			raidingPartyWidget = client.getWidget(TOA_PARTY_WIDGET_ID);
 		}
 
-		if (raidingPartyWidget == null)
-			return; // no party
+		if (raidingPartyWidget == null || raidingPartyWidget.isHidden())
+			return; // no party or party widget is hidden
 
-		String msg = chatMessage.getMessage().toUpperCase(Locale.ROOT).trim();
+		String msgStandardized = Text.standardize(chatMessage.getMessage());
+		//If the standardized message wildcard matches one of the config values, set the message text to either R or UN R
+		String msg = getMessage(unreadyMessages, msgStandardized, "UN R");
+		msg = getMessage(readyMessages, msgStandardized, "R");
+
 		if (msg.equals("R") || msg.equals("UN R"))
 		{
-			if (raidingPartyWidget == null || raidingPartyWidget.isHidden())
-				return;
 
 			String[] playerNames = raidingPartyWidget.getText().split("<br>");
 			StringBuilder outputText = new StringBuilder();
@@ -228,6 +250,15 @@ public class PartyReadyCheckPlugin extends Plugin {
 			resetFrame();
 			rcTicksRemaining = -1;
 		}
+	}
+
+	private String getMessage(List<String> configList, String input, String output) {
+		for (String pattern : configList) {
+			if (WildcardMatcher.matches(pattern, input)) {
+				return output;
+			}
+		}
+		return input;
 	}
 
 	private void resetFrame() {
