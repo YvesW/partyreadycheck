@@ -24,9 +24,9 @@ dependencies {
 }
 
 group = 'com.scainburger.partyreadycheck'
-version = '2.2'
-sourceCompatibility = '1.8'
+version = '2.3'
 
 tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
+	options.release.set(11)
 }
